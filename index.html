@@ -117,6 +117,14 @@
   .btn-generate:hover  { background: #008E83; }
   .btn-generate:active { transform: scale(0.97); }
 
+  .btn-secondary {
+    background: #fff; color: #008E83; border: 1.5px solid #3EBEB1; border-radius: 8px; padding: 11px 26px;
+    font-size: 14px; font-weight: 700; font-family: inherit; cursor: pointer; letter-spacing: 0.02em;
+    transition: background 0.15s, transform 0.1s;
+  }
+  .btn-secondary:hover { background: #f0faf9; }
+  .btn-secondary:active { transform: scale(0.97); }
+
   /* ── Sample tables ── */
   .samples-grid {
     display: grid;
@@ -257,6 +265,42 @@
     object-fit: contain;
     opacity: 0.4;
   }
+
+  /* ── Page nav / dist card (added) ── */
+  .page-nav { text-align: center; margin: 28px 0 20px; }
+  .back-link {
+    background: none; border: none; font-family: inherit; font-size: 13px; font-weight: 700;
+    color: #888; cursor: pointer; margin-bottom: 16px; padding: 0;
+  }
+  .back-link:hover { color: #414142; }
+
+  .dist-card {
+    background: #fff; border-radius: 10px; border: 1px solid #ddd;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06); padding: 18px 20px 20px; margin-bottom: 20px;
+  }
+  .dist-card-header h2 { font-size: 13px; font-weight: 700; color: #414142; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+
+  .stats-strip { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 12px 0 18px; }
+  .stat-box { background: #f7f7f7; border-radius: 8px; padding: 10px 12px; text-align: center; }
+  .stat-box .label { font-size: 10.5px; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
+  .stat-box .value { font-size: 17px; font-weight: 700; color: #414142; margin-top: 3px; }
+
+  svg.dotplot { width: 100%; display: block; }
+  .dotplot-scroll { max-height: 480px; overflow-y: auto; overflow-x: hidden; }
+  .dot { fill: #3EBEB1; }
+  .dot.recent { fill: #C0392B; }
+  .axis-line { stroke: #b5b5b5; stroke-width: 1.5; }
+  .tick-line { stroke: #cfcfcf; stroke-width: 1; }
+  .tick-label { fill: #888; font-size: 11px; font-family: inherit; text-anchor: middle; }
+  .zero-line { stroke: #C0392B; stroke-width: 1.5; }
+  .axis-title { fill: #666; font-size: 11px; font-weight: 700; text-anchor: middle; letter-spacing: 0.03em; }
+  .n-caption { text-align: center; font-size: 12px; color: #999; margin: 4px 0 16px; }
+
+  .async-box {
+    background: #f7fbfa; border: 1px dashed #b8d9d5; border-radius: 8px;
+    padding: 14px 16px; text-align: center; margin-top: 4px;
+  }
+  .async-box p { font-size: 12.5px; color: #557b76; line-height: 1.55; margin-bottom: 12px; }
 </style>
 </head>
 <body>
@@ -276,6 +320,8 @@
 <div class="accent-strip"></div>
 
 <div class="container">
+
+  <div id="page-draw">
 
   <div class="context-box">
     Every day at school, students either buy lunch in the cafeteria or bring lunch from home.
@@ -323,7 +369,6 @@
   <div class="history-card">
     <div class="history-card-header">
       <h2>My sample results &nbsp;<span id="hist-count" style="color:#aaa;font-weight:500;text-transform:none;letter-spacing:0;"></span></h2>
-      <button class="btn-clear" onclick="clearHistory()">Clear all</button>
     </div>
     <table class="hist-tbl">
       <thead>
@@ -338,6 +383,52 @@
       </tbody>
     </table>
   </div>
+
+  <div class="page-nav">
+    <button class="btn-generate" onclick="goToPage('dist')">Next: Create a Class Dotplot &rarr;</button>
+    <div style="margin-top:12px;">
+      <button class="btn-clear" onclick="resetAll()">Reset everything</button>
+    </div>
+  </div>
+
+  </div><!-- /page-draw -->
+
+  <div id="page-dist" style="display:none;">
+
+  <button class="back-link" onclick="goToPage('draw')">&larr; Back to sampling</button>
+
+  <div class="dist-card">
+    <div class="dist-card-header">
+      <h2>Sampling Distribution of p&#770;<sub>F</sub> &minus; p&#770;<sub>S</sub></h2>
+    </div>
+
+    <div class="stats-strip">
+      <div class="stat-box">
+        <div class="label">Simulated mean</div>
+        <div class="value" id="sim-mean">—</div>
+      </div>
+      <div class="stat-box">
+        <div class="label">Simulated SD</div>
+        <div class="value" id="sim-sd">—</div>
+      </div>
+    </div>
+
+    <div class="dotplot-scroll">
+      <svg class="dotplot" id="dotplot" viewBox="0 0 900 260" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+    <div class="n-caption" id="n-caption">0 samples plotted</div>
+
+    <div class="async-box">
+      <p>To generate more samples, use the button below to instantly simulate 100 more pairs of freshmen/senior samples and see a clearer depiction of the distribution.</p>
+      <button class="btn-secondary" onclick="simulateMore()">Simulate 100 trials</button>
+    </div>
+
+    <div style="text-align:center; margin: 20px 0 4px;">
+      <button class="btn-clear" onclick="resetAll()">Reset everything</button>
+    </div>
+  </div>
+
+  </div><!-- /page-dist -->
 
 </div>
 
@@ -382,7 +473,7 @@
   let freshPop    = buildPopulation(N_FRESH,  P_FRESH);
   let seniorPop   = buildPopulation(N_SENIOR, P_SENIOR);
   let sampleCount = 0;
-  const history   = [];
+  let history     = [];   // {n, buyF, buyS, simulated, recent}
 
   function generateSample() {
     const fresh  = drawSRS(freshPop,  SAMPLE_FRESH);
@@ -394,7 +485,8 @@
     renderSampleTable('senior-body', senior);
 
     sampleCount++;
-    history.push({ n: sampleCount, buyF, buyS });
+    history.forEach(h => h.recent = false);
+    history.push({ n: sampleCount, buyF, buyS, simulated: false, recent: true });
     renderHistory();
 
     document.getElementById('counter').textContent =
@@ -409,12 +501,13 @@
 
   function renderHistory() {
     const tbody = document.getElementById('history-body');
-    document.getElementById('hist-count').textContent = '(' + history.length + ' of 5 recorded)';
-    if (history.length === 0) {
+    const manualRows = history.filter(h => !h.simulated);
+    document.getElementById('hist-count').textContent = '(' + manualRows.length + ' of 5 recorded)';
+    if (manualRows.length === 0) {
       tbody.innerHTML = '<tr><td colspan="3" class="empty-msg">Your results will appear here after each sample</td></tr>';
       return;
     }
-    tbody.innerHTML = history.map(row =>
+    tbody.innerHTML = manualRows.map(row =>
       `<tr>
         <td>Sample ${row.n}</td>
         <td>${row.buyF}</td>
@@ -423,9 +516,132 @@
     ).join('');
   }
 
-  function clearHistory() {
-    if (!confirm('Clear all recorded samples?')) return;
-    history.length  = 0;
+  function mean(arr) { return arr.reduce((a, b) => a + b, 0) / arr.length; }
+  function sampleSD(arr) {
+    if (arr.length < 2) return 0;
+    const m = mean(arr);
+    return Math.sqrt(arr.reduce((a, b) => a + (b - m) ** 2, 0) / (arr.length - 1));
+  }
+
+  function diffOf(row) { return (row.buyF / SAMPLE_FRESH) - (row.buyS / SAMPLE_SENIOR); }
+
+  function goToPage(page) {
+    document.getElementById('page-draw').style.display = (page === 'draw') ? 'block' : 'none';
+    document.getElementById('page-dist').style.display = (page === 'dist') ? 'block' : 'none';
+    if (page === 'dist') renderDotplot();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function simulateMore() {
+    history.forEach(h => h.recent = false);
+    for (let i = 0; i < 100; i++) {
+      const fresh  = drawSRS(freshPop,  SAMPLE_FRESH);
+      const senior = drawSRS(seniorPop, SAMPLE_SENIOR);
+      const buyF   = fresh.filter(s => s.choice === 'Buy').length;
+      const buyS   = senior.filter(s => s.choice === 'Buy').length;
+      history.push({ n: history.length + 1, buyF, buyS, simulated: true, recent: false });
+    }
+    renderDotplot();
+  }
+
+  function renderDotplot() {
+    const svg = document.getElementById('dotplot');
+    const W = 900;
+    const padL = 40, padR = 40, padTop = 24, padBottom = 50;
+
+    document.getElementById('n-caption').textContent =
+      history.length + (history.length === 1 ? ' sample plotted' : ' samples plotted');
+
+    if (history.length === 0) {
+      svg.setAttribute('viewBox', `0 0 ${W} 260`);
+      svg.innerHTML = `<text x="${W/2}" y="130" text-anchor="middle" fill="#ccc" font-size="14">No samples yet — generate or simulate a sample</text>`;
+      document.getElementById('sim-mean').textContent = '—';
+      document.getElementById('sim-sd').textContent = '—';
+      return;
+    }
+
+    const values = history.map(diffOf);
+    const m = mean(values);
+    const s = sampleSD(values);
+    document.getElementById('sim-mean').textContent = m.toFixed(3);
+    document.getElementById('sim-sd').textContent = s.toFixed(3);
+
+    let domainMin = -0.3, domainMax = 0.5;
+    const dataMin = Math.min(...values), dataMax = Math.max(...values);
+    domainMin = Math.min(domainMin, dataMin - 0.02);
+    domainMax = Math.max(domainMax, dataMax + 0.02);
+    domainMin = Math.floor(domainMin * 20) / 20;
+    domainMax = Math.ceil(domainMax * 20) / 20;
+
+    const range = domainMax - domainMin;
+    const binWidth = 0.02;
+
+    const xScale = v => padL + ((v - domainMin) / range) * (W - padL - padR);
+
+    const bins = {};
+    history.forEach(h => {
+      const val = diffOf(h);
+      const key = Math.round((val - domainMin) / binWidth);
+      bins[key] = bins[key] || [];
+      bins[key].push(h);
+    });
+    const maxStack = Math.max(...Object.values(bins).map(arr => arr.length));
+
+    let dotR = 5.2, gap = 1.3;
+    if (history.length > 40) { dotR = 4.0; gap = 1.0; }
+    if (history.length > 100) { dotR = 3.0; gap = 0.8; }
+    if (history.length > 250) { dotR = 2.3; gap = 0.6; }
+
+    const rowHeight = dotR * 2 + gap;
+    const plotAreaHeight = Math.max(160, maxStack * rowHeight + 10);
+    const H = plotAreaHeight + padTop + padBottom;
+    const axisY = H - padBottom;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+    let elements = [];
+    Object.keys(bins).forEach(key => {
+      const binVal = domainMin + parseInt(key, 10) * binWidth;
+      const cx = xScale(binVal);
+      const items = bins[key];
+      items.forEach((item, stackI) => {
+        const cy = axisY - dotR - stackI * rowHeight;
+        const cls = item.recent ? 'dot recent' : 'dot';
+        elements.push(`<circle class="${cls}" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${dotR}"></circle>`);
+      });
+    });
+
+    let axisEls = `<line class="axis-line" x1="${padL}" y1="${axisY}" x2="${W - padR}" y2="${axisY}"></line>`;
+    const tickStep = Math.max(0.05, Math.round((range / 8) * 20) / 20);
+    for (let t = domainMin; t <= domainMax + 0.0001; t += tickStep) {
+      const tx = xScale(t);
+      axisEls += `<line class="tick-line" x1="${tx}" y1="${axisY}" x2="${tx}" y2="${axisY + 6}"></line>`;
+      axisEls += `<text class="tick-label" x="${tx}" y="${axisY + 22}">${(Math.round(t * 100) / 100)}</text>`;
+    }
+
+    const axisTitle = `<text class="axis-title" x="${W/2}" y="${H - 6}">Difference in Proportions (Freshmen &minus; Seniors)</text>`;
+
+    svg.innerHTML = axisEls + elements.join('') + axisTitle;
+  }
+
+  let resetArmed = false;
+  let resetTimeout = null;
+
+  function resetAll() {
+    const btns = document.querySelectorAll('.btn-clear');
+    if (!resetArmed) {
+      resetArmed = true;
+      btns.forEach(b => b.textContent = 'Click again to confirm');
+      resetTimeout = setTimeout(() => {
+        resetArmed = false;
+        btns.forEach(b => b.textContent = 'Reset everything');
+      }, 3000);
+      return;
+    }
+    clearTimeout(resetTimeout);
+    resetArmed = false;
+    btns.forEach(b => b.textContent = 'Reset everything');
+
+    history         = [];
     sampleCount     = 0;
     freshPop        = buildPopulation(N_FRESH,  P_FRESH);
     seniorPop       = buildPopulation(N_SENIOR, P_SENIOR);
@@ -433,8 +649,12 @@
     document.getElementById('fresh-body').innerHTML     = '<tr><td colspan="2" class="empty-msg">Press the button to generate a sample</td></tr>';
     document.getElementById('senior-body').innerHTML    = '<tr><td colspan="2" class="empty-msg">Press the button to generate a sample</td></tr>';
     document.getElementById('hist-count').textContent   = '';
+    goToPage('draw');
     renderHistory();
+    renderDotplot();
   }
+
+  renderDotplot();
 </script>
 </body>
 </html>
